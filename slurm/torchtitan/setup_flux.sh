@@ -1,37 +1,25 @@
 #!/bin/bash
-set -e  # Exit immediately if a command exits with a non-zero status
+set -e
 
-# Ensure the user supplied a valid Hugging Face access token
-: "${HF_TOKEN:?Please export your HF_TOKEN environment variable before running this script}"  # Abort if undefined or empty
+: "${HF_TOKEN:?Please export your HF_TOKEN environment variable before running this script}"
 
-
-# 0) remember where we started
 ROOT_DIR=$(pwd)
 
-# 1) Install Python 3.11 + venv support if missing
-if ! command -v python3.12 &> /dev/null; then
-  echo ">>> python3.12 not found – installing via apt..."
-  sudo apt update
-  sudo apt install -y python3.12 python3.12-venv
-fi
-
-# 2) Create & activate a 3.12 venv
-python3.12 -m venv .env
+python -m venv .env
 source .env/bin/activate
 
-# 3) Clone and cd into the flux experiment, upgrade pip and install requirements
-git clone --branch v0.2.0 --depth 1 https://github.com/pytorch/torchtitan 
-cd torchtitan
-pip install --upgrade pip
-pip install -r requirements.txt
-pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu126 --force-reinstall
+pip install torchtitan==0.2.0
+pip install transformers==4.57.1 \
+    einops==0.8.1 \
+    sentencepiece==0.2.1 \
+    wandb==0.22.3
 
-# Flux specific setup
-python ./torchtitan/experiments/flux/scripts/download_autoencoder.py --repo_id black-forest-labs/FLUX.1-dev --ae_path ae.safetensors --hf_token $HF_TOKEN
-cd torchtitan/experiments/flux
-pip install -r requirements-flux.txt
-
-# 5) Make required directories 
+python -m torchtitan.experiments.flux.scripts.download_autoencoder \
+    --repo_id black-forest-labs/FLUX.1-dev \
+    --ae_path ae.safetensors \
+    --hf_token $HF_TOKEN \
+    --local_dir ./assets/
+ 
 cd $ROOT_DIR
 mkdir -p outputs slurm_out
-echo "✅ Setup complete! Activated venv with: $(python --version)"
+echo "Setup complete"
